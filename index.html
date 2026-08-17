@@ -347,6 +347,26 @@ function drawTable(rows){
   if (!shown.length) box.innerHTML = '<div class="note">No country matches that name.</div>';
 }
 
+// Populate the continuum selectors. Called once data has loaded, and again when
+// the theme changes, since the protection gap only exists under Target 3.
+function fillConSelects(){
+  const theme = el('theme').value;
+  const bases = ['cap','cur','cum','pop'].concat(theme === 'protection' ? ['gap'] : []);
+  [['c_from','cum'],['c_to','cap']].forEach(([id, dflt]) => {
+    const sel = el(id), keep = sel.value;
+    sel.innerHTML = '';
+    bases.forEach(b => sel.add(new Option(BLAB[b], b)));
+    sel.value = bases.includes(keep) ? keep : dflt;
+  });
+  const cs = el('c_country'), keep = cs.value;
+  if (cs.options.length !== DATA.countries.length) {
+    cs.innerHTML = '';
+    DATA.countries.slice().sort((x,y) => d3.ascending(x.country, y.country))
+      .forEach(c => cs.add(new Option(c.country, c.iso3)));
+    cs.value = keep || 'USA';
+  }
+}
+
 function drawCon(theme){
   const box = el('con_chart'); box.innerHTML = '';
   const A = el('c_from').value, B = el('c_to').value;
@@ -458,7 +478,7 @@ el('csv').onclick = () => {
   a.click(); URL.revokeObjectURL(a.href);
 };
 
-['c_country','c_from','c_to'].forEach(id =
+['c_country','c_from','c_to'].forEach(id =>
   el(id).addEventListener('change', () => { if (view === 'con') drawCon(el('theme').value); }));
 [['t_map','map','v_map'],['t_tab','tab','v_tab'],['t_con','con','v_con']].forEach(([b,v,pane]) => {
   el(b).onclick = () => {
