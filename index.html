@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Fair effort sharing under the GBF — prototype</title>
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<style>
+  :root { --ink:#1c1c1a; --mute:#6b6b66; --line:#dcdcd6; --bg:#fbfbf9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+         color:var(--ink); background:var(--bg); }
+  header { padding:18px 24px 12px; border-bottom:1px solid var(--line); background:#fff; }
+  h1 { margin:0 0 3px; font-size:17px; font-weight:600; }
+  header p { margin:0; color:var(--mute); font-size:12.5px; }
+  .wrap { display:flex; gap:0; align-items:stretch; min-height:calc(100vh - 74px); }
+  aside { width:290px; padding:18px 20px; border-right:1px solid var(--line); background:#fff; }
+  main { flex:1; padding:16px 22px; overflow:hidden; }
+  .grp { margin-bottom:20px; }
+  .grp h2 { margin:0 0 9px; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+            color:var(--mute); font-weight:600; }
+  .row { display:flex; align-items:center; gap:9px; margin-bottom:7px; }
+  .row label { flex:1; font-size:13px; }
+  .row output { width:40px; text-align:right; font-variant-numeric:tabular-nums; font-size:12.5px;
+                color:var(--mute); }
+  input[type=range] { width:100%; accent-color:#4a6f8a; }
+  select, button { font:inherit; padding:5px 8px; border:1px solid var(--line);
+                   border-radius:5px; background:#fff; color:var(--ink); }
+  select { width:100%; }
+  .toggles label { display:flex; align-items:center; gap:7px; font-size:13px; margin-bottom:6px; }
+  .tabs { display:flex; gap:4px; margin-bottom:12px; }
+  .tabs button { cursor:pointer; }
+  .tabs button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .pool { font-size:12.5px; color:var(--mute); margin-bottom:10px; }
+  .pool b { color:var(--ink); font-weight:600; }
+  table { border-collapse:collapse; width:100%; font-size:13px; }
+  th,td { padding:5px 9px; border-bottom:1px solid var(--line); text-align:right; }
+  th:first-child, td:first-child { text-align:left; }
+  th { font-weight:600; color:var(--mute); font-size:11.5px; text-transform:uppercase;
+       letter-spacing:.04em; }
+  .hide { display:none; }
+  .note { font-size:11.5px; color:var(--mute); margin-top:10px; line-height:1.45; }
+  svg { display:block; max-width:100%; }
+  .country { stroke:#fff; stroke-width:.3px; }
+  .legend text { font-size:10px; fill:var(--mute); }
+  .axis text { font-size:10px; fill:var(--mute); }
+  .axis path, .axis line { stroke:var(--line); }
+.conbar{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:2px 0 10px}
+.conbar label{font-size:12px;color:#6b6b66;display:flex;gap:6px;align-items:center}
+.conbar select{font:inherit;font-size:12px;padding:3px 6px;border:1px solid #d9d9d4;border-radius:5px;background:#fff}
+.mixwrap{margin-top:12px}
+.mixbar{display:flex;height:12px;border-radius:3px;overflow:hidden;background:#ececE6}
+.mixbar div{transition:width .12s ease}
+.mixkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:7px;font-size:11px;color:#6b6b66}
+.mixkey span{display:flex;align-items:center;gap:5px}
+.mixkey i{width:8px;height:8px;border-radius:2px;display:inline-block}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Fair effort sharing under the Global Biodiversity Framework</h1>
+  <p>Prototype. Adjust the weighting on each fairness basis and read the resulting distribution of effort.</p>
+</header>
+
+<div class="wrap">
+<aside>
+  <div class="grp">
+    <h2>Target</h2>
+    <select id="theme">
+      <option value="finance">Biodiversity finance (T19)</option>
+      <option value="protection">Ecosystem protection (T3)</option>
+      <option value="consumption">Sustainable consumption (T16)</option>
+    </select>
+  </div>
+
+  <div class="grp">
+    <h2>Fairness weights</h2>
+    <div class="row"><label>Capacity</label><output id="o_cap"></output></div>
+    <input type="range" id="w_cap" min="0" max="100" value="50" step="1">
+    <div class="row"><label>Current impact</label><output id="o_cur"></output></div>
+    <input type="range" id="w_cur" min="0" max="100" value="0" step="1">
+    <div class="row"><label>Cumulative impact</label><output id="o_cum"></output></div>
+    <input type="range" id="w_cum" min="0" max="100" value="50" step="1">
+    <div class="row"><label>Population</label><output id="o_pop"></output></div>
+    <input type="range" id="w_pop" min="0" max="100" value="0" step="1">
+    <div id="gapwrap" class="hide">
+      <div class="row"><label>Protection shortfall</label><output id="o_gap"></output></div>
+      <input type="range" id="w_gap" min="0" max="100" value="0" step="1">
+    </div>
+    <div class="mixwrap">
+      <div class="mixbar" id="mixbar"></div>
+      <div class="mixkey" id="mixkey"></div>
+    </div>
+  </div>
+
+  <div class="grp toggles">
+    <h2>Attribution</h2>
+    <label><input type="checkbox" id="overseas"> Count overseas impact only</label>
+    <label><input type="checkbox" id="floor"> Apply development floor</label>
+    <div id="pwrap" class="hide">
+      <div class="row"><label>Progressivity (p)</label><output id="o_p"></output></div>
+      <input type="range" id="p" min="1" max="3" value="2" step="0.1">
+    </div>
+  </div>
+
+  <div class="grp">
+    <h2>Preset</h2>
+    <select id="preset">
+      <option value="">Custom</option>
+      <option value="cap">Capacity only</option>
+      <option value="cur">Current impact only</option>
+      <option value="cum">Cumulative impact only</option>
+      <option value="pop">Population only</option>
+      <option value="capcum">Capacity + cumulative (50/50)</option>
+      <option value="survey">Survey-informed</option>
+    </select>
+  </div>
+</aside>
+
+<main>
+  <div class="tabs">
+    <button id="t_map" class="on">Map</button>
+    <button id="t_tab">Table</button>
+    <button id="t_con">Continuum</button>
+  </div>
+  <div class="pool" id="pool"></div>
+  <div id="v_map"></div>
+  <div id="v_tab" class="hide"></div>
+  <div id="v_con" class="hide">
+    <div class="conbar">
+      <label>Country <select id="c_country"></select></label>
+      <label>Sweep from <select id="c_from"></select></label>
+      <label>to <select id="c_to"></select></label>
+    </div>
+    <div id="con_chart"></div>
+    <div class="note" id="con_note"></div>
+  </div>
+  <div class="note" id="foot"></div>
+</main>
+</div>
+
+<script>
+// d3-geo wants CLOCKWISE exterior rings (negative shoelace area) and
+// counter-clockwise holes - the opposite of GeoJSON RFC 7946, which is what GDAL
+// writes. Given an RFC-7946 ring, d3 reads the polygon as everything OUTSIDE it
+// and fills the whole projection. Verified against d3-geo, not assumed.
+function ringArea(r){
+  let a = 0;
+  for (let i = 0, n = r.length, j = n-1; i < n; j = i++)
+    a += r[j][0]*r[i][1] - r[i][0]*r[j][1];
+  return a/2;
+}
+function rewindPoly(poly){
+  return poly.map((ring, i) => {
+    const a = ringArea(ring);
+    return ((i === 0 && a > 0) || (i > 0 && a < 0)) ? ring.slice().reverse() : ring;
+  });
+}
+function rewind(geo){
+  let fixed = 0;
+  geo.features.forEach(f => {
+    const g = f.geometry; if (!g) return;
+    const before = JSON.stringify(g.coordinates);
+    if (g.type === 'Polygon')      g.coordinates = rewindPoly(g.coordinates);
+    if (g.type === 'MultiPolygon') g.coordinates = g.coordinates.map(rewindPoly);
+    if (JSON.stringify(g.coordinates) !== before) fixed++;
+  });
+  if (fixed) console.log('rewound ' + fixed + ' feature(s) to clockwise exteriors');
+  return geo;
+}
+
+const RAMP = { finance:d3.interpolateBlues, protection:d3.interpolateGreens, consumption:d3.interpolateOranges };
+const BREAKS = [0.05,0.15,0.4,1,2.5,6,12];
+let DATA, GEO, view='map';
+
+const el = id => document.getElementById(id);
+const W = () => {
+  const w = { cap:+el('w_cap').value, cur:+el('w_cur').value, cum:+el('w_cum').value, pop:+el('w_pop').value };
+  if (el('theme').value === 'protection') w.gap = +el('w_gap').value;
+  const s = Object.values(w).reduce((a,b)=>a+b,0);
+  if (s === 0) return null;
+  Object.keys(w).forEach(k => w[k] = w[k]/s);
+  return w;
+};
+
+// value of a basis for one country, given the current toggles
+function val(c, basis, overseas, floorOn, p, tau){
+  switch(basis){
+    case 'cap': {
+      if (c.gdp == null) return null;
+      if (!floorOn || c.hdi == null) return c.gdp;
+      return c.hdi >= tau ? c.gdp : c.gdp * Math.pow(c.hdi/tau, p);
+    }
+    case 'pop': return c.population;
+    case 'cur': return overseas ? c.life_current_excl_dom : c.life_current;
+    case 'cum': return overseas ? c.scp_cumulative_imp    : c.scp_cumulative;
+    case 'gap': return c.pa_gap_km2;
+  }
+}
+
+// weighted proportionality, normalised over countries with data for every
+// active basis — the same country-set rule as run_scenario() in R
+function allocate(){
+  const w = W(); if (!w) return [];
+  const overseas = el('overseas').checked, floorOn = el('floor').checked;
+  const p = +el('p').value, tau = DATA.meta.tau_default;
+  const active = Object.keys(w).filter(k => w[k] > 0);
+  const rows = DATA.countries.filter(c =>
+    active.every(b => { const v = val(c,b,overseas,floorOn,p,tau); return v != null && isFinite(v) && v > 0; }));
+  const tot = {}; active.forEach(b => tot[b] = d3.sum(rows, c => val(c,b,overseas,floorOn,p,tau)));
+  return rows.map(c => {
+    let s = 0; active.forEach(b => s += w[b] * val(c,b,overseas,floorOn,p,tau)/tot[b]);
+    return { iso3:c.iso3, country:c.country, share:s*100 };
+  }).sort((a,b) => b.share - a.share);
+}
+
+const pool = () => DATA.meta.pools[el('theme').value];
+
+const BLAB = {cap:'Capacity', cur:'Current impact', cum:'Cumulative impact',
+              pop:'Population', gap:'Protection shortfall'};
+const MIXCOL = {cap:'#1f4e66', cur:'#4e8fa8', cum:'#7fb2c4', pop:'#b9d3dd', gap:'#d6a86a'};
+
+// The sliders are raw weights and move independently. This bar shows what those
+// weights actually come to once normalised, so the two are never in conflict.
+function drawMix(w){
+  const bar = el('mixbar'), key = el('mixkey');
+  const ks = ['cap','cur','cum','pop','gap'].filter(k => w[k] > 0);
+  if (!ks.length){
+    bar.innerHTML = '';
+    key.innerHTML = '<span>Set at least one weight above zero.</span>';
+    return;
+  }
+  bar.innerHTML = ks.map(k =>
+    `<div style="width:${w[k]*100}%;background:${MIXCOL[k]}"></div>`).join('');
+  key.innerHTML = ks.map(k =>
+    `<span><i style="background:${MIXCOL[k]}"></i>${BLAB[k]} ${Math.round(w[k]*100)}%</span>`).join('');
+}
+function fmt(share){
+  const P = pool(), amt = P.value * share/100;
+  return P.unit === 'USD' ? '$' + (amt/1e9).toFixed(2) + ' bn'
+                          : d3.format(',.0f')(amt) + ' Mt';
+}
+
+function render(){
+  const theme = el('theme').value;
+  el('gapwrap').classList.toggle('hide', theme !== 'protection');
+  el('pwrap').classList.toggle('hide', !el('floor').checked);
+  const w = W() || {};
+  ['cap','cur','cum','pop','gap'].forEach(k => {
+    const o = el('o_'+k); if (o) o.textContent = el('w_'+k) ? el('w_'+k).value : '0';
+  });
+  el('o_p').textContent = (+el('p').value).toFixed(1);
+  drawMix(w);
+  const P = pool();
+  el('pool').innerHTML = '<b>' + P.label + '</b> — pool of ' +
+    (P.unit === 'USD' ? '$' + d3.format(',.1f')(P.value/1e9) + ' bn per year'
+                      : d3.format(',.0f')(P.value) + ' Mt');
+  const rows = allocate();
+  el('foot').textContent = rows.length + ' countries carry a share under this weighting. ' +
+    'Shares are normalised over countries with data for every weighted basis.';
+  if (view === 'map') drawMap(rows, theme);
+  if (view === 'tab') drawTable(rows);
+  if (view === 'con') drawCon(theme);
+}
+
+function drawMap(rows, theme){
+  const box = el('v_map'); box.innerHTML = '';
+  const byIso = new Map(rows.map(r => [r.iso3, r.share]));
+  const wpx = Math.max(560, box.clientWidth || 900), hpx = Math.round(wpx*0.52);
+  const svg = d3.select(box).append('svg').attr('viewBox', [0,0,wpx,hpx]);
+  // Fixed projection rather than fitSize, so a single malformed feature cannot
+  // rescale the whole map. Natural Earth I spans ~5.6 radii horizontally.
+  const proj = d3.geoNaturalEarth1()
+    .scale(wpx/5.6).translate([wpx/2, (hpx-38)/2]);
+  const path = d3.geoPath(proj);
+  const col = d3.scaleThreshold().domain(BREAKS)
+    .range(d3.range(BREAKS.length+1).map(i => RAMP[theme](0.12 + 0.13*i)));
+  // Measure what each feature actually draws. Anything covering most of the
+  // canvas is a winding/antimeridian artefact, not a country - skip and report.
+  const area = wpx * (hpx - 38);
+  const skipped = [];
+  const feats = GEO.features.filter(f => {
+    if (!f.geometry || !f.geometry.coordinates) return false;
+    const b = path.bounds(f);
+    const a = (b[1][0]-b[0][0]) * (b[1][1]-b[0][1]);
+    if (!isFinite(a) || a > 0.55 * area) { skipped.push(f.properties.name); return false; }
+    return true;
+  });
+  if (skipped.length) console.warn('skipped ' + skipped.length +
+      ' oversized feature(s): ' + skipped.join(', '));
+  svg.append('g').selectAll('path').data(feats).join('path')
+    .attr('class','country').attr('d', path)
+    .attr('fill', f => { const v = byIso.get(f.properties.ISO3); return v == null ? '#eeeeea' : col(v); })
+    .append('title').text(f => {
+      const v = byIso.get(f.properties.ISO3);
+      return f.properties.name + (v == null ? ' — no data' : ' — ' + v.toFixed(2) + '%  (' + fmt(v) + ')');
+    });
+  // legend
+  const lg = svg.append('g').attr('class','legend').attr('transform', `translate(14,${hpx-26})`);
+  const bw = 30;
+  col.range().forEach((c,i) => {
+    lg.append('rect').attr('x', i*bw).attr('width', bw).attr('height', 8).attr('fill', c);
+    if (i < BREAKS.length) lg.append('text').attr('x',(i+1)*bw).attr('y',20)
+      .attr('text-anchor','middle').text(BREAKS[i]);
+  });
+  lg.append('text').attr('x', 0).attr('y', -5).text('Share of pool (%)');
+}
+
+function drawTable(rows){
+  const box = el('v_tab'); box.innerHTML = '';
+  const t = d3.select(box).append('table');
+  t.append('thead').append('tr').selectAll('th')
+    .data(['','Country','Share','Allocation']).join('th').text(d => d);
+  const tb = t.append('tbody');
+  rows.slice(0,25).forEach((r,i) => {
+    const tr = tb.append('tr');
+    tr.append('td').text(i+1);
+    tr.append('td').text(r.country);
+    tr.append('td').text(r.share.toFixed(2) + '%');
+    tr.append('td').text(fmt(r.share));
+  });
+}
+
+// Populate the continuum selectors. Called once data has loaded, and again when
+// the theme changes, since the protection gap only exists for Target 3.
+function fillConSelects(){
+  const theme = el('theme').value;
+  const bases = ['cap','cur','cum','pop'].concat(theme === 'protection' ? ['gap'] : []);
+  [['c_from','cum'],['c_to','cap']].forEach(([id, dflt]) => {
+    const sel = el(id), keep = sel.value;
+    sel.innerHTML = '';
+    bases.forEach(b => sel.add(new Option(BLAB[b], b)));
+    sel.value = bases.includes(keep) ? keep : dflt;
+  });
+  const cs = el('c_country'), keep = cs.value;
+  if (cs.options.length !== DATA.countries.length) {
+    cs.innerHTML = '';
+    DATA.countries.slice().sort((x,y) => d3.ascending(x.country, y.country))
+      .forEach(c => cs.add(new Option(c.country, c.iso3)));
+    cs.value = keep || 'USA';
+  }
+}
+
+function drawCon(theme){
+  const box = el('con_chart'); box.innerHTML = '';
+  const A = el('c_from').value, B = el('c_to').value;
+  const pick = el('c_country').value;
+  if (A === B) {
+    el('con_note').textContent = 'Choose two different bases to sweep between.';
+    return;
+  }
+  const overseas = el('overseas').checked, floorOn = el('floor').checked;
+  const p = +el('p').value, tau = DATA.meta.tau_default;
+
+  const rows = DATA.countries.filter(c =>
+    [A,B].every(b => { const v = val(c,b,overseas,floorOn,p,tau); return v != null && isFinite(v) && v > 0; }));
+  const tA = d3.sum(rows, c => val(c,A,overseas,floorOn,p,tau));
+  const tB = d3.sum(rows, c => val(c,B,overseas,floorOn,p,tau));
+
+  // Shares are linear in the weights, so each country's sweep is a straight line
+  // between its two single-basis shares. Two endpoints is all that is needed.
+  const series = rows.map(c => {
+    const sA = 100*val(c,A,overseas,floorOn,p,tau)/tA;
+    const sB = 100*val(c,B,overseas,floorOn,p,tau)/tB;
+    return { iso3:c.iso3, country:c.country, sA, sB, mean:(sA+sB)/2 };
+  }).sort((x,y) => y.mean - x.mean);
+
+  const i = series.findIndex(d => d.iso3 === pick);
+  if (i < 0) {
+    el('con_note').textContent =
+      (el('c_country').selectedOptions[0] || {}).text + ' has no data for one of these bases.';
+    return;
+  }
+  const sel = series[i];
+  // Context is the countries nearest in share, not the global top ten, so the
+  // scale stays readable when a small country is selected.
+  const ctx = series.slice(Math.max(0, i-5), i+6).filter(d => d.iso3 !== pick);
+
+  const wpx = Math.max(560, box.clientWidth || 900), hpx = 430, m = {t:16,r:150,b:44,l:56};
+  const svg = d3.select(box).append('svg').attr('viewBox',[0,0,wpx,hpx]);
+  const x = d3.scaleLinear([0,1],[m.l, wpx-m.r]);
+  const all = ctx.concat([sel]);
+  const lo = d3.min(all, d => Math.min(d.sA,d.sB)), hi = d3.max(all, d => Math.max(d.sA,d.sB));
+  const pad = (hi-lo)*0.12 || hi*0.12 || 1;
+  const y = d3.scaleLinear([Math.max(0,lo-pad), hi+pad],[hpx-m.b, m.t]);
+
+  svg.append('g').attr('class','axis').attr('transform',`translate(0,${hpx-m.b})`)
+     .call(d3.axisBottom(x).ticks(6).tickFormat(d3.format('.0%')));
+  svg.append('g').attr('class','axis').attr('transform',`translate(${m.l},0)`)
+     .call(d3.axisLeft(y).ticks(6).tickFormat(d => d+'%'));
+
+  const seg = d => `M${x(0)},${y(d.sA)}L${x(1)},${y(d.sB)}`;
+  ctx.forEach(d => {
+    svg.append('path').attr('d', seg(d)).attr('fill','none')
+       .attr('stroke','#c9c9c3').attr('stroke-width',1.2);
+    svg.append('text').attr('x', wpx-m.r+6).attr('y', y(d.sB)+3)
+       .attr('fill','#9a9a94').style('font-size','10px').text(d.country);
+  });
+
+  // Where the current slider weighting puts this country.
+  const cur = allocate().find(r => r.iso3 === pick);
+  if (cur && cur.share >= y.domain()[0] && cur.share <= y.domain()[1]) {
+    svg.append('line').attr('x1',m.l).attr('x2',wpx-m.r).attr('y1',y(cur.share)).attr('y2',y(cur.share))
+       .attr('stroke','#b4553f').attr('stroke-width',1).attr('stroke-dasharray','4 3');
+    svg.append('text').attr('x', m.l+4).attr('y', y(cur.share)-5)
+       .attr('fill','#b4553f').style('font-size','10px')
+       .text('current weighting: ' + cur.share.toFixed(2) + '%');
+  }
+
+  svg.append('path').attr('d', seg(sel)).attr('fill','none')
+     .attr('stroke','#1f4e66').attr('stroke-width',2.6);
+  [[0,sel.sA],[1,sel.sB]].forEach(([t,v]) =>
+    svg.append('circle').attr('cx',x(t)).attr('cy',y(v)).attr('r',3.5).attr('fill','#1f4e66'));
+  svg.append('text').attr('x', wpx-m.r+6).attr('y', y(sel.sB)+4)
+     .attr('fill','#1f4e66').style('font-size','11px').style('font-weight','600').text(sel.country);
+
+  svg.append('text').attr('x',(m.l+wpx-m.r)/2).attr('y',hpx-8).attr('text-anchor','middle')
+     .style('font-size','11px').attr('fill','#6b6b66')
+     .text(`weight on ${BLAB[B].toLowerCase()}  (0 = ${BLAB[A].toLowerCase()} only, 1 = ${BLAB[B].toLowerCase()} only)`);
+
+  el('con_note').textContent = '';
+}
+
+const PRESETS = {
+  cap:[100,0,0,0], cur:[0,100,0,0], cum:[0,0,100,0], pop:[0,0,0,100],
+  capcum:[50,0,50,0], survey:[38,33,27,2]
+};
+el('preset').onchange = e => {
+  const P = PRESETS[e.target.value]; if (!P) return;
+  el('w_cap').value=P[0]; el('w_cur').value=P[1]; el('w_cum').value=P[2]; el('w_pop').value=P[3];
+  if (e.target.value === 'survey') { el('overseas').checked = true; el('floor').checked = true; }
+  render();
+};
+['w_cap','w_cur','w_cum','w_pop','w_gap','theme','overseas','floor','p'].forEach(id =>
+  el(id).addEventListener('input', () => {
+    if (id !== 'theme') el('preset').value = '';
+    if (id === 'theme') fillConSelects();
+    render();
+  }));
+['c_country','c_from','c_to'].forEach(id =>
+  el(id).addEventListener('change', () => { if (view === 'con') drawCon(el('theme').value); }));
+[['t_map','map','v_map'],['t_tab','tab','v_tab'],['t_con','con','v_con']].forEach(([b,v,pane]) => {
+  el(b).onclick = () => {
+    view = v;
+    ['t_map','t_tab','t_con'].forEach(x => el(x).classList.toggle('on', x===b));
+    ['v_map','v_tab','v_con'].forEach(x => el(x).classList.toggle('hide', x!==pane));
+    render();
+  };
+});
+
+Promise.all([d3.json('data.json'), d3.json('world.geojson')]).then(([d,g]) => {
+  DATA = d; GEO = rewind(g); fillConSelects(); render();
+}).catch(e => {
+  document.querySelector('main').innerHTML =
+    '<p style="color:#a33">Could not load <code>data.json</code> / <code>world.geojson</code>. ' +
+    'Run <code>R/27_export_tool_data.R</code> first, and open this page through a local server ' +
+    '(browsers block file:// fetches).</p><pre>'+e+'</pre>';
+});
+</script>
+</body>
+</html>
