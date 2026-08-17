@@ -53,6 +53,14 @@
 .mixkey{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:7px;font-size:11px;color:#6b6b66}
 .mixkey span{display:flex;align-items:center;gap:5px}
 .mixkey i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.tabbar{display:flex;gap:14px;align-items:center;margin:2px 0 10px}
+.tabbar input{font:inherit;font-size:13px;padding:5px 9px;border:1px solid #d9d9d4;border-radius:6px;width:210px}
+.tabbar .note{margin:0}
+.linkbtn{margin-left:auto;font:inherit;font-size:12px;color:#1f4e66;background:none;border:none;
+         cursor:pointer;text-decoration:underline;padding:0}
+#tabscroll{max-height:62vh;overflow-y:auto;border-bottom:1px solid var(--line)}
+#tabscroll thead th{position:sticky;top:0;background:var(--bg,#fff);z-index:1;
+         box-shadow:inset 0 -1px 0 var(--line)}
 </style>
 </head>
 <body>
@@ -125,7 +133,14 @@
   </div>
   <div class="pool" id="pool"></div>
   <div id="v_map"></div>
-  <div id="v_tab" class="hide"></div>
+  <div id="v_tab" class="hide">
+    <div class="tabbar">
+      <input type="search" id="q" placeholder="Find a country" autocomplete="off">
+      <span class="note" id="tabcount"></span>
+      <button id="csv" class="linkbtn">Download CSV</button>
+    </div>
+    <div id="tabscroll"></div>
+  </div>
   <div id="v_con" class="hide">
     <div class="conbar">
       <label>Country <select id="c_country"></select></label>
@@ -307,38 +322,29 @@ function drawMap(rows, theme){
 }
 
 function drawTable(rows){
-  const box = el('v_tab'); box.innerHTML = '';
+  const box = el('tabscroll'); box.innerHTML = '';
+  const q = (el('q').value || '').trim().toLowerCase();
+  // Rank comes from the full ordering, so filtering shows a country's true
+  // position rather than renumbering the matches from one.
+  const ranked = rows.map((r,i) => ({...r, rank:i+1}));
+  const shown = q ? ranked.filter(r => r.country.toLowerCase().includes(q)) : ranked;
+
+  el('tabcount').textContent = q
+    ? shown.length + ' of ' + ranked.length + ' countries'
+    : ranked.length + ' countries';
+
   const t = d3.select(box).append('table');
   t.append('thead').append('tr').selectAll('th')
     .data(['','Country','Share','Allocation']).join('th').text(d => d);
   const tb = t.append('tbody');
-  rows.slice(0,25).forEach((r,i) => {
+  shown.forEach(r => {
     const tr = tb.append('tr');
-    tr.append('td').text(i+1);
+    tr.append('td').text(r.rank);
     tr.append('td').text(r.country);
     tr.append('td').text(r.share.toFixed(2) + '%');
     tr.append('td').text(fmt(r.share));
   });
-}
-
-// Populate the continuum selectors. Called once data has loaded, and again when
-// the theme changes, since the protection gap only exists for Target 3.
-function fillConSelects(){
-  const theme = el('theme').value;
-  const bases = ['cap','cur','cum','pop'].concat(theme === 'protection' ? ['gap'] : []);
-  [['c_from','cum'],['c_to','cap']].forEach(([id, dflt]) => {
-    const sel = el(id), keep = sel.value;
-    sel.innerHTML = '';
-    bases.forEach(b => sel.add(new Option(BLAB[b], b)));
-    sel.value = bases.includes(keep) ? keep : dflt;
-  });
-  const cs = el('c_country'), keep = cs.value;
-  if (cs.options.length !== DATA.countries.length) {
-    cs.innerHTML = '';
-    DATA.countries.slice().sort((x,y) => d3.ascending(x.country, y.country))
-      .forEach(c => cs.add(new Option(c.country, c.iso3)));
-    cs.value = keep || 'USA';
-  }
+  if (!shown.length) box.innerHTML = '<div class="note">No country matches that name.</div>';
 }
 
 function drawCon(theme){
@@ -437,7 +443,22 @@ el('preset').onchange = e => {
     if (id === 'theme') fillConSelects();
     render();
   }));
-['c_country','c_from','c_to'].forEach(id =>
+el('q').addEventListener('input', () => { if (view === 'tab') drawTable(allocate()); });
+
+el('csv').onclick = () => {
+  const P = pool(), rows = allocate();
+  const unit = P.unit === 'USD' ? 'allocation_usd' : 'allocation_mt';
+  const head = ['rank','iso3','country','share_pct',unit];
+  const body = rows.map((r,i) => [i+1, r.iso3, '"'+r.country.replace(/"/g,'""')+'"',
+    r.share.toFixed(4), (P.value * r.share/100).toFixed(P.unit === 'USD' ? 0 : 3)]);
+  const csv = [head].concat(body).map(r => r.join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+  a.download = 'fair-shares-' + el('theme').value + '.csv';
+  a.click(); URL.revokeObjectURL(a.href);
+};
+
+['c_country','c_from','c_to'].forEach(id =
   el(id).addEventListener('change', () => { if (view === 'con') drawCon(el('theme').value); }));
 [['t_map','map','v_map'],['t_tab','tab','v_tab'],['t_con','con','v_con']].forEach(([b,v,pane]) => {
   el(b).onclick = () => {
