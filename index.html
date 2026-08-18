@@ -69,14 +69,114 @@
 .tip .na{display:block;color:#a9a9a3}
 .country{transition:none}
 .country.hi{stroke:#1c1c1a;stroke-width:.9px}
+.modal{position:fixed;inset:0;z-index:20;background:rgba(28,28,26,.42);
+       display:flex;align-items:center;justify-content:center;padding:24px}
+.modalbox{background:#fff;max-width:620px;width:100%;max-height:86vh;overflow-y:auto;
+       border-radius:9px;padding:26px 30px 22px;box-shadow:0 14px 44px rgba(0,0,0,.24);position:relative}
+.modalbox h2{margin:0 0 4px;font-size:17px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink)}
+.modalbox .lede{margin:0 0 18px;color:var(--mute);font-size:13px;line-height:1.5}
+.modalbox h3{margin:0 0 6px;font-size:12.5px;font-weight:600;color:var(--ink);
+       display:flex;align-items:center;gap:8px}
+/* The three accents are the tool's own target colours: blue for finance, green
+   for protection, orange for consumption. */
+.gsec{border-left:3px solid var(--ac);padding-left:14px;margin:18px 0}
+.gsec:first-of-type{margin-top:16px}
+.gnum{width:19px;height:19px;border-radius:50%;background:var(--ac);color:#fff;font-size:11px;
+       display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:600}
+.gs1{--ac:#2b6ca3} .gs2{--ac:#2f7d4f} .gs3{--ac:#c2703a} .gs4{--ac:#4a6f8a}
+.tgt{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;font-size:12.8px;
+       line-height:1.5;color:#3a3a36}
+.tgt i{width:9px;height:9px;border-radius:2px;flex:none;margin-top:5px}
+.modalbox ul.keyed{list-style:none;padding-left:0}
+.modalbox ul.keyed li{display:flex;align-items:flex-start;gap:8px}
+.modalbox ul.keyed li i{width:9px;height:9px;border-radius:2px;flex:none;margin-top:5px}
+.closing{margin:18px 0 0;font-size:12.5px;color:#3a3a36;line-height:1.55;
+       background:#f6f4ee;border:1px solid #e6e0d2;border-radius:6px;padding:12px 14px}
+.closing b{color:var(--ink)}
+.modalbox p{margin:0 0 7px;font-size:13px;line-height:1.55;color:#3a3a36}
+.modalbox ul{margin:4px 0 8px;padding-left:17px}
+.modalbox li{font-size:12.8px;line-height:1.5;margin-bottom:3px;color:#3a3a36}
+.modalbox li b{font-weight:600;color:var(--ink)}
+.modalx{position:absolute;top:12px;right:14px;border:none;background:none;font-size:21px;
+       line-height:1;color:var(--mute);cursor:pointer;padding:2px 6px}
+.modalx:hover{color:var(--ink)}
+.modalgo{margin-top:16px;background:var(--ink);color:#fff;border-color:var(--ink);
+       cursor:pointer;padding:7px 15px;font-size:13px}
+.helpbtn{margin-left:10px;font-size:11.5px;padding:2px 9px;cursor:pointer;
+       border:1px solid var(--line);border-radius:20px;color:var(--mute);background:#fff}
+.helpbtn:hover{color:var(--ink);border-color:var(--mute)}
+.closing{margin:14px 0 0;font-size:12.5px;color:var(--mute);line-height:1.5;
+       border-top:1px solid var(--line);padding-top:12px}
 </style>
 </head>
 <body>
 
 <header>
   <h1>Fair effort sharing under the Global Biodiversity Framework</h1>
-  <p>Prototype. Adjust the weighting on each fairness basis and read the resulting distribution of effort.</p>
+  <p>Prototype. Adjust the weighting on each fairness basis and read the resulting distribution of effort.<button id="help" class="helpbtn">How to use this</button></p>
 </header>
+
+<div id="guide" class="modal hide">
+  <div class="modalbox">
+    <button class="modalx" id="guide_x" title="Close">&times;</button>
+    <h2>How to use this tool</h2>
+    <p class="lede">The Global Biodiversity Framework sets targets for the world to reduce its impact on
+      nature, but it does not address how these costs should be shared fairly among countries. This tool
+      divides figurative pools of effort needed to reach global targets between countries accordingly. As
+      the user, you can choose whichever principles of fairness you think are most important when fairly
+      dividing effort. The results help visualize what these choices could mean.</p>
+
+    <div class="gsec gs1">
+      <h3><span class="gnum">1</span>Pick a target</h3>
+      <p>Each of the three targets included in this model has a total to be divided:</p>
+      <div class="tgt"><i style="background:#2b6ca3"></i><span>money for total biodiversity finance</span></div>
+      <div class="tgt"><i style="background:#2f7d4f"></i><span>land and financing needed to reach 30% global
+        protected area coverage by 2030</span></div>
+      <div class="tgt"><i style="background:#c2703a"></i><span>raw material use for sustainable consumption</span></div>
+      <p style="margin-top:7px;color:#6b6b66;font-size:12.2px">The map takes on each target's colour.</p>
+    </div>
+
+    <div class="gsec gs2">
+      <h3><span class="gnum">2</span>Decide what a fair share should depend on</h3>
+      <p>Each slider is a different answer to the question of why a country would owe more than another.</p>
+      <ul class="keyed">
+        <li><i style="background:#1f4e66"></i><span><b>Capacity</b> — richer countries can afford to do more.</span></li>
+        <li><i style="background:#4e8fa8"></i><span><b>Current impact</b> — countries driving biodiversity loss today.</span></li>
+        <li><i style="background:#7fb2c4"></i><span><b>Cumulative impact</b> — countries that have driven impact historically (starting 1990).</span></li>
+        <li><i style="background:#b9d3dd"></i><span><b>Population</b> — every person counts the same.</span></li>
+        <li><i style="background:#d6a86a"></i><span><b>Protection shortfall</b> — how far a country is from protecting 30% of its own land.</span></li>
+      </ul>
+      <p>The bar underneath shows the resulting mix from your choices, in these same colours.</p>
+    </div>
+
+    <div class="gsec gs3">
+      <h3><span class="gnum">3</span>Additional fairness choices</h3>
+      <ul>
+        <li><b>Count overseas impact only</b> — counts just the part of a country's footprint that falls
+          beyond their own borders. This excludes the impact of a country's land use and internal
+          consumption of its resources.</li>
+        <li><b>Apply development floor</b> — reduces the capacity-based share for countries below a level
+          of human development. This accounts for a country's need to invest in its own development.</li>
+      </ul>
+    </div>
+
+    <div class="gsec gs4">
+      <h3><span class="gnum">4</span>Read the result</h3>
+      <ul>
+        <li><b>Map</b> — each country's share of the total. Hover to see its allocated figures.</li>
+        <li><b>Table</b> — every country ranked, searchable, and downloadable as a spreadsheet.</li>
+        <li><b>Continuum</b> — pick one country and watch its share move as the weighting shifts between
+          two principles and compare to similar countries.</li>
+      </ul>
+    </div>
+
+    <p class="closing"><b>Important note:</b> Fairness choices are already made implicitly in the process
+      of determining national contributions, as well as during CBD deliberations. By developing this
+      framework, we hope to provide a tool that makes these decisions explicit, and to show how different
+      fairness assumptions translate into country-level responsibilities under the KMGBF.</p>
+    <button class="modalgo" id="guide_go">Start exploring</button>
+  </div>
+</div>
 
 <div class="wrap">
 <aside>
@@ -532,6 +632,24 @@ el('csv').onclick = () => {
     render();
   };
 });
+
+// The guide opens on a first visit and can be reopened from the header. Change
+// SHOW_GUIDE_ONCE to false to show it on every visit instead.
+const SHOW_GUIDE_ONCE = true;
+const GUIDE_KEY = 'gbf-tool-guide-seen';
+const openGuide  = () => el('guide').classList.remove('hide');
+const closeGuide = () => {
+  el('guide').classList.add('hide');
+  try { localStorage.setItem(GUIDE_KEY, '1'); } catch(e) {}
+};
+el('help').onclick    = openGuide;
+el('guide_x').onclick = closeGuide;
+el('guide_go').onclick = closeGuide;
+el('guide').onclick = e => { if (e.target === el('guide')) closeGuide(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGuide(); });
+let seen = false;
+try { seen = localStorage.getItem(GUIDE_KEY) === '1'; } catch(e) {}
+if (!SHOW_GUIDE_ONCE || !seen) openGuide();
 
 Promise.all([d3.json('data.json'), d3.json('world.geojson')]).then(([d,g]) => {
   DATA = d; GEO = rewind(g); fillConSelects(); render();
