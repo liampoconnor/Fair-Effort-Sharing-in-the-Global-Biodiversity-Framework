@@ -61,6 +61,14 @@
 #tabscroll{max-height:62vh;overflow-y:auto;border-bottom:1px solid var(--line)}
 #tabscroll thead th{position:sticky;top:0;background:var(--bg,#fff);z-index:1;
          box-shadow:inset 0 -1px 0 var(--line)}
+.tip{position:fixed;pointer-events:none;z-index:9;background:#1c1c1a;color:#fff;
+     padding:6px 9px;border-radius:5px;font-size:12px;line-height:1.35;
+     box-shadow:0 2px 10px rgba(0,0,0,.18);white-space:nowrap}
+.tip b{font-weight:600}
+.tip .v{display:block;font-variant-numeric:tabular-nums;color:#cfe3ee}
+.tip .na{display:block;color:#a9a9a3}
+.country{transition:none}
+.country.hi{stroke:#1c1c1a;stroke-width:.9px}
 </style>
 </head>
 <body>
@@ -102,7 +110,7 @@
   </div>
 
   <div class="grp toggles">
-    <h2>Attribution</h2>
+    <h2>Additional settings</h2>
     <label><input type="checkbox" id="overseas"> Count overseas impact only</label>
     <label><input type="checkbox" id="floor"> Apply development floor</label>
     <div id="pwrap" class="hide">
@@ -112,7 +120,7 @@
   </div>
 
   <div class="grp">
-    <h2>Preset</h2>
+    <h2>Preset weighting scenarios</h2>
     <select id="preset">
       <option value="">Custom</option>
       <option value="cap">Capacity only</option>
@@ -231,6 +239,11 @@ function allocate(){
 
 const pool = () => DATA.meta.pools[el('theme').value];
 
+// A single tooltip node that follows the cursor. The native <title> tooltip is
+// delayed by the browser and torn down between elements, which reads as lag.
+const TIP = d3.select('body').append('div').attr('class','tip').style('display','none');
+const hideTip = () => TIP.style('display','none');
+
 const BLAB = {cap:'Capacity', cur:'Current impact', cum:'Cumulative impact',
               pop:'Population', gap:'Protection shortfall'};
 const MIXCOL = {cap:'#1f4e66', cur:'#4e8fa8', cum:'#7fb2c4', pop:'#b9d3dd', gap:'#d6a86a'};
@@ -278,47 +291,78 @@ function render(){
   if (view === 'con') drawCon(theme);
 }
 
+// The map is built once and then recoloured. Geometry never changes, so
+// rebuilding 241 paths on every slider event was the bulk of the drag lag.
+let MAP = null, BYISO = new Map();
+
 function drawMap(rows, theme){
-  const box = el('v_map'); box.innerHTML = '';
-  const byIso = new Map(rows.map(r => [r.iso3, r.share]));
+  const box = el('v_map');
+  BYISO = new Map(rows.map(r => [r.iso3, r.share]));
   const wpx = Math.max(560, box.clientWidth || 900), hpx = Math.round(wpx*0.52);
-  const svg = d3.select(box).append('svg').attr('viewBox', [0,0,wpx,hpx]);
-  // Fixed projection rather than fitSize, so a single malformed feature cannot
-  // rescale the whole map. Natural Earth I spans ~5.6 radii horizontally.
-  const proj = d3.geoNaturalEarth1()
-    .scale(wpx/5.6).translate([wpx/2, (hpx-38)/2]);
-  const path = d3.geoPath(proj);
+
+  if (!MAP || MAP.wpx !== wpx || !box.firstChild) {
+    box.innerHTML = '';
+    const svg = d3.select(box).append('svg').attr('viewBox', [0,0,wpx,hpx])
+      .on('mouseleave', hideTip);
+    // Fixed projection rather than fitSize, so a single malformed feature cannot
+    // rescale the whole map. Natural Earth I spans ~5.6 radii horizontally.
+    const proj = d3.geoNaturalEarth1()
+      .scale(wpx/5.6).translate([wpx/2, (hpx-38)/2]);
+    const path = d3.geoPath(proj);
+    // Measure what each feature actually draws. Anything covering most of the
+    // canvas is a winding/antimeridian artefact, not a country - skip and report.
+    const area = wpx * (hpx - 38);
+    const skipped = [];
+    const feats = GEO.features.filter(f => {
+      if (!f.geometry || !f.geometry.coordinates) return false;
+      const bb = path.bounds(f);
+      const a = (bb[1][0]-bb[0][0]) * (bb[1][1]-bb[0][1]);
+      if (!isFinite(a) || a > 0.55 * area) { skipped.push(f.properties.name); return false; }
+      return true;
+    });
+    if (skipped.length) console.warn('skipped ' + skipped.length +
+        ' oversized feature(s): ' + skipped.join(', '));
+
+    const sel = svg.append('g').selectAll('path').data(feats).join('path')
+      .attr('class','country').attr('d', path)
+      // Handlers read BYISO rather than closing over it, so they stay correct
+      // as the weighting changes without needing to be rebound.
+      .on('mousemove', function(ev, f){
+        const v = BYISO.get(f.properties.ISO3);
+        TIP.style('display','block').html(
+          '<b>' + f.properties.name + '</b>' +
+          (v == null ? '<span class="na">no data</span>'
+                     : '<span class="v">' + v.toFixed(2) + '%  \u00b7  ' + fmt(v) + '</span>'));
+        const pad = 14, n = TIP.node();
+        let x = ev.clientX + pad, y = ev.clientY + pad;
+        if (x + n.offsetWidth  > window.innerWidth  - 8) x = ev.clientX - n.offsetWidth  - pad;
+        if (y + n.offsetHeight > window.innerHeight - 8) y = ev.clientY - n.offsetHeight - pad;
+        TIP.style('left', x+'px').style('top', y+'px');
+        d3.select(this).raise().classed('hi', true);
+      })
+      .on('mouseleave', function(){ hideTip(); d3.select(this).classed('hi', false); });
+
+    const lg = svg.append('g').attr('class','legend')
+      .attr('transform', `translate(14,${hpx-26})`);
+    MAP = { svg, sel, lg, wpx, hpx };
+  }
+
   const col = d3.scaleThreshold().domain(BREAKS)
     .range(d3.range(BREAKS.length+1).map(i => RAMP[theme](0.12 + 0.13*i)));
-  // Measure what each feature actually draws. Anything covering most of the
-  // canvas is a winding/antimeridian artefact, not a country - skip and report.
-  const area = wpx * (hpx - 38);
-  const skipped = [];
-  const feats = GEO.features.filter(f => {
-    if (!f.geometry || !f.geometry.coordinates) return false;
-    const b = path.bounds(f);
-    const a = (b[1][0]-b[0][0]) * (b[1][1]-b[0][1]);
-    if (!isFinite(a) || a > 0.55 * area) { skipped.push(f.properties.name); return false; }
-    return true;
+
+  MAP.sel.attr('fill', f => {
+    const v = BYISO.get(f.properties.ISO3);
+    return v == null ? '#eeeeea' : col(v);
   });
-  if (skipped.length) console.warn('skipped ' + skipped.length +
-      ' oversized feature(s): ' + skipped.join(', '));
-  svg.append('g').selectAll('path').data(feats).join('path')
-    .attr('class','country').attr('d', path)
-    .attr('fill', f => { const v = byIso.get(f.properties.ISO3); return v == null ? '#eeeeea' : col(v); })
-    .append('title').text(f => {
-      const v = byIso.get(f.properties.ISO3);
-      return f.properties.name + (v == null ? ' — no data' : ' — ' + v.toFixed(2) + '%  (' + fmt(v) + ')');
-    });
-  // legend
-  const lg = svg.append('g').attr('class','legend').attr('transform', `translate(14,${hpx-26})`);
+
+  MAP.lg.selectAll('*').remove();
   const bw = 30;
   col.range().forEach((c,i) => {
-    lg.append('rect').attr('x', i*bw).attr('width', bw).attr('height', 8).attr('fill', c);
-    if (i < BREAKS.length) lg.append('text').attr('x',(i+1)*bw).attr('y',20)
+    MAP.lg.append('rect').attr('x', i*bw).attr('width', bw).attr('height', 8).attr('fill', c);
+    if (i < BREAKS.length) MAP.lg.append('text').attr('x',(i+1)*bw).attr('y',20)
       .attr('text-anchor','middle').text(BREAKS[i]);
   });
-  lg.append('text').attr('x', 0).attr('y', -5).text('Share of pool (%)');
+  MAP.lg.append('text').attr('x', 0).attr('y', -5).text('Share of pool (%)');
 }
 
 function drawTable(rows){
@@ -482,7 +526,7 @@ el('csv').onclick = () => {
   el(id).addEventListener('change', () => { if (view === 'con') drawCon(el('theme').value); }));
 [['t_map','map','v_map'],['t_tab','tab','v_tab'],['t_con','con','v_con']].forEach(([b,v,pane]) => {
   el(b).onclick = () => {
-    view = v;
+    view = v; hideTip();
     ['t_map','t_tab','t_con'].forEach(x => el(x).classList.toggle('on', x===b));
     ['v_map','v_tab','v_con'].forEach(x => el(x).classList.toggle('hide', x!==pane));
     render();
