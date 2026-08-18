@@ -73,29 +73,29 @@
        display:flex;align-items:center;justify-content:center;padding:24px}
 .modalbox{background:#fff;max-width:620px;width:100%;max-height:86vh;overflow-y:auto;
        border-radius:9px;padding:26px 30px 22px;box-shadow:0 14px 44px rgba(0,0,0,.24);position:relative}
-.modalbox h2{margin:0 0 4px;font-size:17px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink)}
-.modalbox .lede{margin:0 0 18px;color:var(--mute);font-size:13px;line-height:1.5}
-.modalbox h3{margin:0 0 6px;font-size:12.5px;font-weight:600;color:var(--ink);
+.modalbox h2{margin:0 0 5px;font-size:18px;font-weight:600;text-transform:none;letter-spacing:0;color:var(--ink)}
+.modalbox .lede{margin:0 0 18px;color:var(--mute);font-size:13.8px;line-height:1.55}
+.modalbox h3{margin:0 0 7px;font-size:13.4px;font-weight:600;color:var(--ink);
        display:flex;align-items:center;gap:8px}
-/* The three accents are the tool's own target colours: blue for finance, green
+/* The three accents are the tool's own target colors: blue for finance, green
    for protection, orange for consumption. */
 .gsec{border-left:3px solid var(--ac);padding-left:14px;margin:18px 0}
 .gsec:first-of-type{margin-top:16px}
 .gnum{width:19px;height:19px;border-radius:50%;background:var(--ac);color:#fff;font-size:11px;
        display:inline-flex;align-items:center;justify-content:center;flex:none;font-weight:600}
 .gs1{--ac:#2b6ca3} .gs2{--ac:#2f7d4f} .gs3{--ac:#c2703a} .gs4{--ac:#4a6f8a}
-.tgt{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;font-size:12.8px;
-       line-height:1.5;color:#3a3a36}
+.tgt{display:flex;align-items:flex-start;gap:8px;margin-bottom:5px;font-size:13.4px;
+       line-height:1.55;color:#3a3a36}
 .tgt i{width:9px;height:9px;border-radius:2px;flex:none;margin-top:5px}
 .modalbox ul.keyed{list-style:none;padding-left:0}
 .modalbox ul.keyed li{display:flex;align-items:flex-start;gap:8px}
 .modalbox ul.keyed li i{width:9px;height:9px;border-radius:2px;flex:none;margin-top:5px}
-.closing{margin:18px 0 0;font-size:12.5px;color:#3a3a36;line-height:1.55;
+.closing{margin:18px 0 0;font-size:13.4px;color:#3a3a36;line-height:1.55;
        background:#f6f4ee;border:1px solid #e6e0d2;border-radius:6px;padding:12px 14px}
 .closing b{color:var(--ink)}
-.modalbox p{margin:0 0 7px;font-size:13px;line-height:1.55;color:#3a3a36}
+.modalbox p{margin:0 0 7px;font-size:13.8px;line-height:1.6;color:#3a3a36}
 .modalbox ul{margin:4px 0 8px;padding-left:17px}
-.modalbox li{font-size:12.8px;line-height:1.5;margin-bottom:3px;color:#3a3a36}
+.modalbox li{font-size:13.4px;line-height:1.55;margin-bottom:4px;color:#3a3a36}
 .modalbox li b{font-weight:600;color:var(--ink)}
 .modalx{position:absolute;top:12px;right:14px;border:none;background:none;font-size:21px;
        line-height:1;color:var(--mute);cursor:pointer;padding:2px 6px}
@@ -120,7 +120,7 @@
   <div class="modalbox">
     <button class="modalx" id="guide_x" title="Close">&times;</button>
     <h2>How to use this tool</h2>
-    <p class="lede">The Global Biodiversity Framework sets targets for the world to reduce its impact on
+    <p class="lede">The Kunming-Montreal Global Biodiversity Framework sets targets for the world to reduce its impact on
       nature, but it does not address how these costs should be shared fairly among countries. This tool
       divides figurative pools of effort needed to reach global targets between countries accordingly. As
       the user, you can choose whichever principles of fairness you think are most important when fairly
@@ -133,20 +133,21 @@
       <div class="tgt"><i style="background:#2f7d4f"></i><span>land and financing needed to reach 30% global
         protected area coverage by 2030</span></div>
       <div class="tgt"><i style="background:#c2703a"></i><span>raw material use for sustainable consumption</span></div>
-      <p style="margin-top:7px;color:#6b6b66;font-size:12.2px">The map takes on each target's colour.</p>
+      <p style="margin-top:7px;color:#6b6b66;font-size:12.8px">The map takes on each target's color.</p>
     </div>
 
     <div class="gsec gs2">
       <h3><span class="gnum">2</span>Decide what a fair share should depend on</h3>
-      <p>Each slider is a different answer to the question of why a country would owe more than another.</p>
+      <p>Each slider represents a fairness weighting for how one could divide effort. You can combine them
+        or only apply one depending on what you think is fair.</p>
       <ul class="keyed">
-        <li><i style="background:#1f4e66"></i><span><b>Capacity</b> — richer countries can afford to do more.</span></li>
-        <li><i style="background:#4e8fa8"></i><span><b>Current impact</b> — countries driving biodiversity loss today.</span></li>
-        <li><i style="background:#7fb2c4"></i><span><b>Cumulative impact</b> — countries that have driven impact historically (starting 1990).</span></li>
-        <li><i style="background:#b9d3dd"></i><span><b>Population</b> — every person counts the same.</span></li>
+        <li><i style="background:#1f4e66"></i><span><b>Capacity</b> — a country's economic capacity to pay.</span></li>
+        <li><i style="background:#4e8fa8"></i><span><b>Current impact</b> — a country's impact on species loss today.</span></li>
+        <li><i style="background:#7fb2c4"></i><span><b>Cumulative impact</b> — a country's impact on species loss since 1990.</span></li>
+        <li><i style="background:#b9d3dd"></i><span><b>Population</b> — the number of people a country has.</span></li>
         <li><i style="background:#d6a86a"></i><span><b>Protection shortfall</b> — how far a country is from protecting 30% of its own land.</span></li>
       </ul>
-      <p>The bar underneath shows the resulting mix from your choices, in these same colours.</p>
+      <p>The bar underneath shows the resulting mix from your choices, in these same colors.</p>
     </div>
 
     <div class="gsec gs3">
@@ -171,9 +172,9 @@
     </div>
 
     <p class="closing"><b>Important note:</b> Fairness choices are already made implicitly in the process
-      of determining national contributions, as well as during CBD deliberations. By developing this
+      of determining national contributions, as well as during Convention on Biological Diversity deliberations. By developing this
       framework, we hope to provide a tool that makes these decisions explicit, and to show how different
-      fairness assumptions translate into country-level responsibilities under the KMGBF.</p>
+      fairness assumptions translate into country-level responsibilities under the Global Biodiversity Framework.</p>
     <button class="modalgo" id="guide_go">Start exploring</button>
   </div>
 </div>
@@ -391,7 +392,7 @@ function render(){
   if (view === 'con') drawCon(theme);
 }
 
-// The map is built once and then recoloured. Geometry never changes, so
+// The map is built once and then recolored. Geometry never changes, so
 // rebuilding 241 paths on every slider event was the bulk of the drag lag.
 let MAP = null, BYISO = new Map();
 
