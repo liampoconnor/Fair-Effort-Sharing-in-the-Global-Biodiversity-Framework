@@ -637,9 +637,9 @@ el('csv').onclick = () => {
   };
 });
 
-// The guide opens on a first visit and can be reopened from the header. Change
-// SHOW_GUIDE_ONCE to false to show it on every visit instead.
-const SHOW_GUIDE_ONCE = true;
+// The guide opens every time the page is loaded. Set SHOW_GUIDE_ONCE to true to
+// show it only on a visitor's first visit instead.
+const SHOW_GUIDE_ONCE = false;
 const GUIDE_KEY = 'gbf-tool-guide-seen';
 const openGuide  = () => el('guide').classList.remove('hide');
 const closeGuide = () => {
