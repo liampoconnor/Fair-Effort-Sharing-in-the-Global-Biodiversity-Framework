@@ -68,7 +68,7 @@
 .tip .v{display:block;font-variant-numeric:tabular-nums;color:#cfe3ee}
 .tip .na{display:block;color:#a9a9a3}
 .country{transition:none}
-.country.hi{stroke:#1c1c1a;stroke-width:.9px}
+.hilite{fill:none;stroke:#1c1c1a;stroke-width:1.1px;pointer-events:none}
 .modal{position:fixed;inset:0;z-index:20;background:rgba(28,28,26,.42);
        display:flex;align-items:center;justify-content:center;padding:24px}
 /* .hide and .modal have equal specificity and .modal is declared later, so
@@ -346,7 +346,10 @@ const pool = () => DATA.meta.pools[el('theme').value];
 // A single tooltip node that follows the cursor. The native <title> tooltip is
 // delayed by the browser and torn down between elements, which reads as lag.
 const TIP = d3.select('body').append('div').attr('class','tip').style('display','none');
-const hideTip = () => TIP.style('display','none');
+const hideTip = () => {
+  TIP.style('display','none');
+  if (MAP && MAP.hl) MAP.hl.attr('d', null);
+};
 
 const BLAB = {cap:'Capacity', cur:'Current impact', cum:'Cumulative impact',
               pop:'Population', gap:'Protection shortfall'};
@@ -427,11 +430,17 @@ function drawMap(rows, theme){
     if (skipped.length) console.warn('skipped ' + skipped.length +
         ' oversized feature(s): ' + skipped.join(', '));
 
+    let hl;
     const sel = svg.append('g').selectAll('path').data(feats).join('path')
       .attr('class','country').attr('d', path)
       // Handlers read BYISO rather than closing over it, so they stay correct
       // as the weighting changes without needing to be rebound.
       .on('mousemove', function(ev, f){
+        // A single outline element tracks the cursor. Toggling a class on each
+        // country and relying on mouseleave stranded outlines when the pointer
+        // moved fast, because raise() reorders the node mid-interaction and the
+        // browser then never delivers its mouseleave.
+        hl.attr('d', path(f));
         const v = BYISO.get(f.properties.ISO3);
         TIP.style('display','block').html(
           '<b>' + f.properties.name + '</b>' +
@@ -442,13 +451,14 @@ function drawMap(rows, theme){
         if (x + n.offsetWidth  > window.innerWidth  - 8) x = ev.clientX - n.offsetWidth  - pad;
         if (y + n.offsetHeight > window.innerHeight - 8) y = ev.clientY - n.offsetHeight - pad;
         TIP.style('left', x+'px').style('top', y+'px');
-        d3.select(this).raise().classed('hi', true);
       })
-      .on('mouseleave', function(){ hideTip(); d3.select(this).classed('hi', false); });
+      .on('mouseleave', hideTip);
 
+    // Drawn after the countries so it always sits on top, without reordering.
+    hl = svg.append('path').attr('class','hilite');
     const lg = svg.append('g').attr('class','legend')
       .attr('transform', `translate(14,${hpx-26})`);
-    MAP = { svg, sel, lg, wpx, hpx };
+    MAP = { svg, sel, lg, hl, path, wpx, hpx };
   }
 
   const col = d3.scaleThreshold().domain(BREAKS)
