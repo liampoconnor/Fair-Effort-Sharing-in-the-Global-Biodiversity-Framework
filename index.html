@@ -325,7 +325,7 @@ function val(c, basis, overseas, floorOn, p, tau){
   }
 }
 
-// weighted proportionality, normalised over countries with data for every
+// weighted proportionality, normalized over countries with data for every
 // active basis — the same country-set rule as run_scenario() in R
 function allocate(){
   const w = W(); if (!w) return [];
@@ -356,7 +356,7 @@ const BLAB = {cap:'Capacity', cur:'Current impact', cum:'Cumulative impact',
 const MIXCOL = {cap:'#1f4e66', cur:'#4e8fa8', cum:'#7fb2c4', pop:'#b9d3dd', gap:'#d6a86a'};
 
 // The sliders are raw weights and move independently. This bar shows what those
-// weights actually come to once normalised, so the two are never in conflict.
+// weights actually come to once normalized, so the two are never in conflict.
 function drawMix(w){
   const bar = el('mixbar'), key = el('mixkey');
   const ks = ['cap','cur','cum','pop','gap'].filter(k => w[k] > 0);
@@ -392,7 +392,7 @@ function render(){
                       : d3.format(',.0f')(P.value) + ' Mt');
   const rows = allocate();
   el('foot').textContent = rows.length + ' countries carry a share under this weighting. ' +
-    'Shares are normalised over countries with data for every weighted basis.';
+    'Shares are normalized over countries with data for every weighted basis.';
   if (view === 'map') drawMap(rows, theme);
   if (view === 'tab') drawTable(rows);
   if (view === 'con') drawCon(theme);
