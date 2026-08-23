@@ -536,10 +536,16 @@ function drawCon(theme){
   const overseas = el('overseas').checked, floorOn = el('floor').checked;
   const p = +el('p').value, tau = DATA.meta.tau_default;
 
-  const rows = DATA.countries.filter(c =>
-    [A,B].every(b => { const v = val(c,b,overseas,floorOn,p,tau); return v != null && isFinite(v) && v > 0; }));
-  const tA = d3.sum(rows, c => val(c,A,overseas,floorOn,p,tau));
-  const tB = d3.sum(rows, c => val(c,B,overseas,floorOn,p,tau));
+  // Each end is normalised over the countries that have data for THAT basis,
+  // which is how allocate() builds the map and how run_scenario() builds the
+  // paper's figures. Normalising both ends over the intersection instead would
+  // move endpoints away from the scenario values reported elsewhere: under a
+  // protected-area sweep it shifts Russia from 1.44% to 1.61%.
+  const ok = (c,b) => { const v = val(c,b,overseas,floorOn,p,tau); return v != null && isFinite(v) && v > 0; };
+  const tA = d3.sum(DATA.countries.filter(c => ok(c,A)), c => val(c,A,overseas,floorOn,p,tau));
+  const tB = d3.sum(DATA.countries.filter(c => ok(c,B)), c => val(c,B,overseas,floorOn,p,tau));
+  // A line needs a value at both ends, so only countries in both sets are drawn.
+  const rows = DATA.countries.filter(c => ok(c,A) && ok(c,B));
 
   // Shares are linear in the weights, so each country's sweep is a straight line
   // between its two single-basis shares. Two endpoints is all that is needed.
@@ -607,7 +613,11 @@ function drawCon(theme){
 
 const PRESETS = {
   cap:[100,0,0,0], cur:[0,100,0,0], cum:[0,0,100,0], pop:[0,0,0,100],
-  capcum:[50,0,50,0], survey:[38,33,27,2]
+  capcum:[50,0,50,0],
+  // The raw WBF selection counts. The tool divides by their sum, so these give
+  // 17/45, 15/45, 12/45, 1/45 exactly, matching survey_w in 02_allocate.R.
+  // Rounding them to 38/33/27/2 shifted the US by 0.06 percentage points.
+  survey:[17,15,12,1]
 };
 el('preset').onchange = e => {
   const P = PRESETS[e.target.value]; if (!P) return;
